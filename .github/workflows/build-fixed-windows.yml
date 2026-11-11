@@ -10,9 +10,10 @@ permissions:
 
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: windows-2022
     timeout-minutes: 30
     env:
+      npm_config_msvs_version: '2022'
       ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
       ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
     steps:
