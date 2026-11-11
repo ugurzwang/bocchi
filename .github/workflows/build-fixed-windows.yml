@@ -1,0 +1,50 @@
+name: Build fixed Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [skin-download-fix]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      ELECTRON_MIRROR: https://github.com/electron/electron/releases/download/
+      ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.11.0'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build native hash dependency
+        run: npm rebuild xxhash-addon
+      - name: Verify native hash dependency
+        run: node -e "require('xxhash-addon')"
+      - name: Build application
+        run: pnpm run build
+      - name: Package Windows installer
+        run: pnpm exec electron-builder --win nsis --x64 --publish never --config.electronDownload.mirror=https://github.com/electron/electron/releases/download/ --config.win.signAndEditExecutable=false
+      - name: Verify packaged native hash dependency
+        shell: pwsh
+        run: |
+          $env:ELECTRON_RUN_AS_NODE = '1'
+          & ./dist/win-unpacked/Bocchi.exe -e "require('./dist/win-unpacked/resources/app.asar/node_modules/xxhash-addon')"
+          if ($LASTEXITCODE -ne 0) { throw 'Packaged native dependency failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Bocchi-skin-fix-Windows-x64
+          path: dist/*setup.exe
+          if-no-files-found: error
+          retention-days: 14
