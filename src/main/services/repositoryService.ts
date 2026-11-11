@@ -127,6 +127,44 @@ export class RepositoryService {
     const { owner, repo, branch, skinsPath } = LEAGUESKINS_REPO
     const baseUrl = `https://github.com/${owner}/${repo}/blob/${branch}/${skinsPath}`
 
+    // LeagueSkins now stores packages under Riot IDs, not display names.
+    const champion = championId
+      ? championDataService.getChampionByIdSync(championId)
+      : championDataService.getChampionByNameSync(championName)
+    const fileName = skinFile.replace(/\.zip$/i, '')
+    const chromaSuffix = skinFile.match(/^(.+?)\s+(\d{4,6})\.zip$/i)
+    if (champion) {
+      if (chromaSuffix) {
+        const chromaId = chromaSuffix[2]
+        const parent = champion.skins.find((skin) =>
+          skin.chromaList?.some((chroma) => chroma.id.toString() === chromaId)
+        )
+        if (parent) {
+          const parentId = champion.id * 1000 + parent.num
+          return `${baseUrl}/${champion.id}/${parentId}/${chromaId}/${chromaId}.zip`
+        }
+      } else {
+        const skin = champion.skins.find(
+          (entry) => entry.name === fileName || entry.nameEn === fileName
+        )
+        if (skin) {
+          const skinId = champion.id * 1000 + skin.num
+          return `${baseUrl}/${champion.id}/${skinId}/${skinId}.zip`
+        }
+      }
+    }
+
+    // The catalog also resolves names when champion metadata is unavailable.
+    if (!chromaSuffix) {
+      const skinId = this.getSkinIdByName(fileName)
+      if (skinId && /^\d+$/.test(skinId)) {
+        const resolvedChampionId = Math.floor(Number(skinId) / 1000)
+        if (!championId || championId === resolvedChampionId) {
+          return `${baseUrl}/${resolvedChampionId}/${skinId}/${skinId}.zip`
+        }
+      }
+    }
+
     // Check if this is a chroma (has 4-6 digit numeric ID at end of filename)
     const chromaMatch = skinFile.match(/^(.+?)\s+(\d{4,6})\.zip$/i)
     if (chromaMatch) {
