@@ -40,9 +40,15 @@ jobs:
       - name: Verify packaged native hash dependency
         shell: pwsh
         run: |
-          $env:ELECTRON_RUN_AS_NODE = '1'
-          & ./dist/win-unpacked/Bocchi.exe -e "require('./dist/win-unpacked/resources/app.asar/node_modules/xxhash-addon')"
-          if ($LASTEXITCODE -ne 0) { throw 'Packaged native dependency failed' }
+          @'
+          const { spawnSync } = require('node:child_process');
+          const result = spawnSync('./dist/win-unpacked/Bocchi.exe', [
+            '-e', "require('./dist/win-unpacked/resources/app.asar/node_modules/xxhash-addon'); console.log('Packaged native dependency OK')"
+          ], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: 'inherit' });
+          if (result.error) console.error(result.error);
+          console.log('Packaged check exit:', result.status, 'signal:', result.signal);
+          process.exit(result.status ?? 1);
+          '@ | node
       - uses: actions/upload-artifact@v4
         with:
           name: Bocchi-skin-fix-Windows-x64
